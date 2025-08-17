@@ -13,13 +13,13 @@ This is a c++ library that provides features for encoding and decoding byte arra
 
 ## Build Instructions
 
-Run these CLI commands from the top-level directory of the project:
+Run these CLI commands from the top-level directory of the project
 
 * cmake -B build -S .
 * cmake --build build
 
 ## Install Instructions
 
-Run the install command from the build directory.
+Run the install command from the build directory
 
 * sudo make install

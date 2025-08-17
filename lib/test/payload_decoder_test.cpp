@@ -107,4 +107,29 @@ TEST(PayloadDecoderTest, RecoverFromParsingError)
     EXPECT_TRUE(is_error_callback_activated);
 }
 
+TEST(PayloadDecoderTest, MoveConstructor)
+{
+    const std::string payload_content = "This is a payload";
+    const std::string full_payload = "deadbeef00000011This is a payload";
+    std::string first_half = full_payload.substr(0, full_payload.size()/2);
+    std::string second_half = full_payload.substr(full_payload.size()/2, full_payload.size());
+
+    PayloadDecoder decoder1;
+    bool is_payload_callback_activated = false;
+
+    decoder1.SetPayloadCallback([&](const std::span<char>& payload)
+    {
+        EXPECT_EQ(std::string(payload.begin(),payload.end()), payload_content);
+        is_payload_callback_activated = true;
+    });
+
+    decoder1.Accumulate(first_half);
+
+    PayloadDecoder decoder2(std::move(decoder1));
+
+    decoder2.Accumulate(second_half);
+
+    EXPECT_TRUE(is_payload_callback_activated);
+}
+
 } // namespace SmoothOperator::Test
