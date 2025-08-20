@@ -2,103 +2,91 @@
 
 namespace SmoothOperator
 {
-std::string Protocol::IntegerToHexString(unsigned int number, unsigned int width)
-{
-    std::stringstream hex_stream;
-    hex_stream <<  std::setw(width) << std::setfill(STUFFING_CHARACTER) << std::hex << number;
-    return hex_stream.str();
-}
 
-std::optional<unsigned long> Protocol::HexStringToInteger(const std::string& unsigned_hex)
+Header Protocol::BuildHeader(uint32_t payload_size)
 {
-    if(not IsHexStringValid(unsigned_hex))
+    uint16_t checksum = 0;
+
+    Header header 
     {
-        return std::nullopt;
-    }
+        .prefix = PREFIX,
+        .payload_size = payload_size,
+        .version = VERSION,
+        .checksum = checksum
+    };
 
-    return std::stoul(unsigned_hex, nullptr, HEX_BASE);
+    std::array<char, sizeof(Header)> header_bytes;
+    memcpy(header_bytes.data(),&header,sizeof(Header));
+
+    const std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
+
+    checksum = ComputeChecksum(header_bytes_view);
+
+    header.checksum = checksum;
+
+    return header;
 }
 
-std::optional<unsigned long> Protocol::HexStringToInteger(std::span<char> unsigned_hex_view)
+bool Protocol::IsHeaderValid(std::span<char> header_bytes)
 {
-    const std::string unsigned_hex (unsigned_hex_view.begin(), unsigned_hex_view.end());
-
-    if(not IsHexStringValid(unsigned_hex))
-    {
-        return std::nullopt;
-    }
-
-    return std::stoul(unsigned_hex, nullptr, HEX_BASE);
-}
-
-bool Protocol::IsHeaderFormatValid(const std::span<char>& header)
-{
-    if(header.size() != TOTAL_HEADER_LENGTH)
+    if(header_bytes.size() != sizeof(Header) || not IsPrefixValid(header_bytes) || not IsVersionValid(header_bytes))
     {
         return false;
     }
 
-    return IsHeaderPrefixFormatValid(header) && IsPayloadSizeFormatValid(header);
+    Header header {};
+    memcpy(&header, header_bytes.data(), sizeof(Header));
+
+    uint16_t checksum = ComputeChecksum(header_bytes);
+
+    return header.checksum == checksum;
 }
 
-bool Protocol::IsHeaderPrefixFormatValid(const std::span<char>& header)
+uint16_t Protocol::ComputeChecksum(std::span<char> header_bytes)
 {
-    if(header.size() != TOTAL_HEADER_LENGTH)
+    uint16_t sum = 0;
+
+    // Note that the checksum represents the last two bytes of the header when represented as a byte array. It is not included in computing the checksum.
+    for(size_t index = 0; index < header_bytes.size() - sizeof(MAXIMUM_CHECKSUM_VALUE); ++index)
+    {
+        sum += static_cast<uint8_t>(header_bytes[index]);
+    }
+
+    sum %= MAXIMUM_CHECKSUM_VALUE;
+
+    return sum;
+}
+
+bool Protocol::IsPrefixValid(std::span<char> header_bytes)
+{
+    if(header_bytes.size() != sizeof(Header))
     {
         return false;
     }
 
-    const std::span<char> header_prefix = header.subspan(HEADER_PREFIX_START_INDEX, HEADER_PREFIX_LENGTH);
+    std::span<char> prefix_bytes_view = header_bytes.subspan(PREFIX_START_INDEX, sizeof(PREFIX));
 
-    return std::string(header_prefix.begin(),header_prefix.end()) == IntegerToHexString(HEADER_PREFIX, HEADER_PREFIX_LENGTH);
+    uint32_t prefix = 0;
+
+    memcpy(&prefix, prefix_bytes_view.data(), sizeof(PREFIX));
+
+    return prefix == PREFIX;
 }
 
-bool Protocol::IsPayloadSizeFormatValid(const std::span<char>& header)
+bool Protocol::IsVersionValid(std::span<char> header_bytes)
 {
-    if(header.size() != TOTAL_HEADER_LENGTH)
+    if(header_bytes.size() != sizeof(Header))
     {
         return false;
     }
 
-    const std::span<char> payload_size = header.subspan(PAYLOAD_SIZE_START_INDEX, PAYLOAD_SIZE_LENGTH);
+    std::span<char> version_bytes_view = header_bytes.subspan(VERSION_START_INDEX, sizeof(VERSION));
 
-    return IsHexStringValid(payload_size);
-}
+    uint8_t version = 0;
 
-bool Protocol::IsHexStringValid(const std::span<char>& hex_string)
-{
-    if(hex_string.empty() || hex_string.front() == MINUS_SIGN)
-    {
-        return false;
-    }
+    memcpy(&version, version_bytes_view.data(), sizeof(PREFIX));
 
-    for(const char& rune : hex_string)
-    {
-        if(std::isxdigit(rune) == 0)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool Protocol::IsHexStringValid(const std::string& hex_string)
-{
-    if(hex_string.empty() || hex_string.front() == MINUS_SIGN)
-    {
-        return false;
-    }
-
-    for(const char& rune : hex_string)
-    {
-        if(std::isxdigit(rune) == 0)
-        {
-            return false;
-        }
-    }
-
-    return true;
+    return version == VERSION;
 }
 
 } // namespace SmoothOperator
