@@ -1,5 +1,4 @@
 #pragma once
-#include "decoder_error.h"
 #include "protocol.h"
 #include <functional>
 #include <vector>

@@ -30,7 +30,7 @@ TEST(PayloadDecoderTest, AccumulatePayload)
     EXPECT_TRUE(is_payload_callback_activated);
 }
 
-TEST(PayloadDecoderTest, DISABLED_AccumulatePayloads)
+TEST(PayloadDecoderTest, AccumulatePayloads)
 {
     const int payload_count = 100;
     std::vector<std::string> payloads(payload_count);
@@ -48,24 +48,35 @@ TEST(PayloadDecoderTest, DISABLED_AccumulatePayloads)
     {
         std::string payload = "This is a payload "+std::to_string(count);
         payloads[count] = payload;
-        //EXPECT_TRUE(Encoder::PrependHeader(payload));
+
         const std::span<char> payload_view(payload.begin(), payload.end());
+        
+        std::optional<std::array<char, sizeof(Header)>> header_opt = Encoder::RequestHeader(payload_view);
+
+        EXPECT_TRUE(header_opt.has_value());
+
+        const std::span<char> header_view (header_opt.value().begin(),header_opt.value().end());
+        
+        EXPECT_TRUE(decoder.Accumulate(header_view));
         EXPECT_TRUE(decoder.Accumulate(payload_view));
     }
 
     EXPECT_EQ(payload_callback_activations, payload_count);
 }
 
-TEST(PayloadDecoderTest, DISABLED_RecoverFromParsingError)
+TEST(PayloadDecoderTest, RecoverFromParsingError)
 {
-    const std::string payload_content = "This is a payload";
-    const std::string full_payload = "deadbeef00000011This is a payload";
-    std::string first_half = full_payload.substr(0, full_payload.size()/2);
-    std::string second_half = full_payload.substr(full_payload.size()/2, full_payload.size());
+    std::string payload_content = "This is a payload";
+    std::span<char> payload_view(payload_content.begin(),payload_content.end());
+
+    std::optional<std::array<char, sizeof(Header)>> header_opt = Encoder::RequestHeader(payload_view);
+
+    EXPECT_TRUE(header_opt.has_value());
+
+    std::span<char> header_view(header_opt.value().begin(),header_opt.value().end());
 
     Decoder decoder;
     bool is_payload_callback_activated = false;
-    bool is_error_callback_activated = false;
 
     decoder.SetPayloadCallback([&](const std::span<char>& payload)
     {
@@ -73,26 +84,29 @@ TEST(PayloadDecoderTest, DISABLED_RecoverFromParsingError)
         is_payload_callback_activated = true;
     });
 
-    // *** ACCUMULATE INVALID HEADER SEQUENCE ***
+    // ACCUMULATE INVALID HEADER SEQUENCE //
 
-    EXPECT_FALSE(decoder.Accumulate(second_half));
+    EXPECT_FALSE(decoder.Accumulate(payload_view));
 
-    // *** RECOVER FROM PARSING ERROR ***
+    // RECOVER FROM PARSING ERROR //
 
     decoder.Reset();
 
-    EXPECT_TRUE(decoder.Accumulate(first_half));
-    EXPECT_TRUE(decoder.Accumulate(second_half));
+    EXPECT_TRUE(decoder.Accumulate(header_view));
+    EXPECT_TRUE(decoder.Accumulate(payload_view));
     EXPECT_TRUE(is_payload_callback_activated);
-    EXPECT_TRUE(is_error_callback_activated);
 }
 
-TEST(PayloadDecoderTest, DISABLED_MoveConstructor)
+TEST(PayloadDecoderTest, MoveConstructor)
 {
-    const std::string payload_content = "This is a payload";
-    const std::string full_payload = "deadbeef00000011This is a payload";
-    std::string first_half = full_payload.substr(0, full_payload.size()/2);
-    std::string second_half = full_payload.substr(full_payload.size()/2, full_payload.size());
+    std::string payload_content = "This is a payload";
+    std::span<char> payload_view(payload_content.begin(),payload_content.end());
+
+    std::optional<std::array<char, sizeof(Header)>> header_opt = Encoder::RequestHeader(payload_view);
+
+    EXPECT_TRUE(header_opt.has_value());
+
+    std::span<char> header_view(header_opt.value().begin(),header_opt.value().end());
 
     Decoder decoder1;
     bool is_payload_callback_activated = false;
@@ -103,11 +117,11 @@ TEST(PayloadDecoderTest, DISABLED_MoveConstructor)
         is_payload_callback_activated = true;
     });
 
-    decoder1.Accumulate(first_half);
+    EXPECT_TRUE(decoder1.Accumulate(header_view));
 
     Decoder decoder2(std::move(decoder1));
 
-    decoder2.Accumulate(second_half);
+    EXPECT_TRUE(decoder2.Accumulate(payload_view));
 
     EXPECT_TRUE(is_payload_callback_activated);
 }

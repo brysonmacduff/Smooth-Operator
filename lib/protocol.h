@@ -26,7 +26,6 @@ public:
 
     static Header BuildHeader(uint32_t payload_size);
     static bool IsHeaderValid(std::span<char> header_bytes);
-    static uint16_t ComputeChecksum(std::span<char> header_bytes);
 
 private:
 
@@ -35,6 +34,7 @@ private:
 
     static bool IsPrefixValid(std::span<char> header_bytes);
     static bool IsVersionValid(std::span<char> header_bytes);
+    static uint16_t ComputeChecksum(std::span<char> header_bytes);
     
 };
 } // namespace SmoothOperator
