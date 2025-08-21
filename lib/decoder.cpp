@@ -57,11 +57,6 @@ void Decoder::SetPayloadCallback(PayloadCallback callback)
 
 void Decoder::Reset()
 {
-    if (m_accumulated_bytes.capacity() > m_buffer_size)
-    {
-        m_accumulated_bytes.resize(m_buffer_size);
-    }
-
     m_Clear();
 }
 
