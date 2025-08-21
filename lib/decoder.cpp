@@ -40,6 +40,11 @@ bool Decoder::Accumulate(const std::span<char>& bytes)
         {
             result = m_ProcessPayload();
         }
+
+        if(not result)
+        {
+            break;
+        }
     }
 
     return result;
