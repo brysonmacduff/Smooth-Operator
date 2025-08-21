@@ -22,4 +22,4 @@ Run these CLI commands from the top-level directory of the project
 
 Run the install command from the build directory
 
-* sudo make install
+* sudo cmake --install build
