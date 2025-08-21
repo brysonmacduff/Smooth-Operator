@@ -4,82 +4,88 @@
 namespace SmoothOperator::Test
 {
 
-TEST(ProtocolTest, IntegerToHexString)
+TEST(ProtocolTest, BuildHeader)
 {
-    const unsigned long number = 255;
-    const int width = 8;
-    const std::string hex_string = Protocol::IntegerToHexString(number, width);
-    EXPECT_EQ("000000ff", hex_string);
+    const uint32_t payload_size = 16;
+    const Header header = Protocol::BuildHeader(payload_size);
+
+    EXPECT_EQ(header.prefix, Protocol::PREFIX);
+    EXPECT_EQ(header.payload_size, payload_size);
+    EXPECT_EQ(header.version, Protocol::VERSION);
 }
 
-TEST(ProtocolTest, HexStringToInteger)
+TEST(ProtocolTest, ValidHeader)
 {
-    const std::string hex = "ff";
-    const std::optional<unsigned long> number_opt = Protocol::HexStringToInteger(hex);
+    const uint32_t payload_size = 16;
+    const Header header = Protocol::BuildHeader(payload_size);
 
-    EXPECT_TRUE(number_opt.has_value());
-    EXPECT_EQ(number_opt, 255);
+    std::vector<char> header_bytes(sizeof(Header));
+
+    memcpy(header_bytes.data(), &header, sizeof(Header));
+
+    std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
+
+    EXPECT_TRUE(Protocol::IsHeaderValid(header_bytes_view));
 }
 
-TEST(ProtocolTest, HexSpanToInteger)
+TEST(ProtocolTest, InvalidHeaderChecksum)
 {
-    std::string hex = "ff";
-    std::span<char> hex_view (hex.begin(), hex.end());
-    const std::optional<unsigned long> number_opt = Protocol::HexStringToInteger(hex_view);
+    const uint32_t payload_size = 16;
+    const Header header = Protocol::BuildHeader(payload_size);
 
-    EXPECT_TRUE(number_opt.has_value());
-    EXPECT_EQ(number_opt, 255);
-}
+    std::vector<char> header_bytes(sizeof(Header));
 
-TEST(ProtocolTest, NegativeHexString)
-{
-    const std::string hex = "-ff";
-    const std::optional<unsigned long> number_opt = Protocol::HexStringToInteger(hex);
+    memcpy(header_bytes.data(), &header, sizeof(Header));
 
-    EXPECT_FALSE(number_opt.has_value());
-}
+    // Intentionall corrupt the checksum
 
-TEST(ProtocolTest, EmptyHexString)
-{
-    const std::string hex;
-    const std::optional<unsigned long> number_opt = Protocol::HexStringToInteger(hex);
+    const int checksum_start_index = 9;
 
-    EXPECT_FALSE(number_opt.has_value());
-}
+    header_bytes[checksum_start_index] = 0xff;
 
-TEST(ProtocolTest, IsHeaderFormatValid)
-{
-    std::string header = "deadbeef00000011";
-    std::span<char> header_view(header.begin(),header.end());
-    EXPECT_TRUE(Protocol::IsHeaderFormatValid(header_view));
+    std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
+
+    EXPECT_FALSE(Protocol::IsHeaderValid(header_bytes_view));
 }
 
 TEST(ProtocolTest, InvalidHeaderPrefix)
 {
-    std::string header = "deaXbeef00000011";
-    std::span<char> header_view(header.begin(),header.end());
-    EXPECT_FALSE(Protocol::IsHeaderFormatValid(header_view));
+    const uint32_t payload_size = 16;
+    const Header header = Protocol::BuildHeader(payload_size);
+
+    std::vector<char> header_bytes(sizeof(Header));
+
+    memcpy(header_bytes.data(), &header, sizeof(Header));
+
+    // Intentionall corrupt the checksum
+
+    const int checksum_start_index = 0;
+
+    header_bytes[checksum_start_index] = 0x0;
+
+    std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
+
+    EXPECT_FALSE(Protocol::IsHeaderValid(header_bytes_view));
 }
 
-TEST(ProtocolTest, InvalidPayloadSize)
+TEST(ProtocolTest, InvalidHeaderVersion)
 {
-    std::string header = "deadbeef0000X011";
-    std::span<char> header_view(header.begin(),header.end());
-    EXPECT_FALSE(Protocol::IsHeaderFormatValid(header_view));
-}
+    const uint32_t payload_size = 16;
+    const Header header = Protocol::BuildHeader(payload_size);
 
-TEST(ProtocolTest, EmptyHeader)
-{
-    std::string header;
-    std::span<char> header_view(header.begin(),header.end());
-    EXPECT_FALSE(Protocol::IsHeaderFormatValid(header_view));
-}
+    std::vector<char> header_bytes(sizeof(Header));
 
-TEST(ProtocolTest, OversizedHeader)
-{
-    std::string header = "deadbeef000000111";
-    std::span<char> header_view(header.begin(),header.end());
-    EXPECT_FALSE(Protocol::IsHeaderFormatValid(header_view));
+    memcpy(header_bytes.data(), &header, sizeof(Header));
+
+    // Intentionall corrupt the checksum
+
+    const int checksum_start_index = 4;
+
+    header_bytes[checksum_start_index] = 0x0;
+
+    std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
+
+    EXPECT_FALSE(Protocol::IsHeaderValid(header_bytes_view));
 }
 
 } // namespace SmoothOperator::Test
