@@ -10,7 +10,9 @@ std::optional<std::array<char,sizeof(Header)>> Encoder::RequestHeader(std::span<
         return std::nullopt;
     }
 
-    const Header header = Protocol::BuildHeader(payload.size());
+    Header header = Protocol::BuildHeader(payload.size());
+
+    Protocol::ConvertToNetworkEndian(header);
 
     std::array<char,sizeof(Header)> header_bytes;
 

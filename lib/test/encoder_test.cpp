@@ -1,4 +1,5 @@
 #include "encoder.h"
+#include "protocol.h"
 #include <gtest/gtest.h>
 
 namespace SmoothOperator::Test
@@ -23,9 +24,12 @@ TEST(EncoderTest, MinimumPayloadSize)
 
     EXPECT_TRUE(header_opt.has_value());
 
-    const std::span<char> header_view(header_opt.value().begin(),header_opt.value().end());
+    Header header {};
+    memcpy(&header, header_opt.value().data(), sizeof(Header));
 
-    EXPECT_TRUE(Protocol::IsHeaderValid(header_view));
+    Protocol::ConvertToLocalEndian(header);
+
+    EXPECT_TRUE(Protocol::IsHeaderValid(header));
 }
 
 } // namespace SmoothOperator::Test
