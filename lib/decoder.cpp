@@ -70,9 +70,9 @@ bool Decoder::m_ProcessHeader()
    Header header {};
    memcpy(&header, m_accumulated_bytes.data(), sizeof(Header));
 
-   std::span<char> header_bytes_view(m_accumulated_bytes.begin(),m_accumulated_bytes.end());
+   Protocol::ConvertToLocalEndian(header);
    
-   if(not Protocol::IsHeaderValid(header_bytes_view))
+   if(not Protocol::IsHeaderValid(header))
    {
         return false;
    }

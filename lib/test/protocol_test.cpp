@@ -7,7 +7,7 @@ namespace SmoothOperator::Test
 TEST(ProtocolTest, BuildHeader)
 {
     const uint32_t payload_size = 16;
-    const Header header = Protocol::BuildHeader(payload_size);
+    Header header = Protocol::BuildHeader(payload_size);
 
     EXPECT_EQ(header.prefix, Protocol::PREFIX);
     EXPECT_EQ(header.payload_size, payload_size);
@@ -19,73 +19,84 @@ TEST(ProtocolTest, ValidHeader)
     const uint32_t payload_size = 16;
     const Header header = Protocol::BuildHeader(payload_size);
 
-    std::vector<char> header_bytes(sizeof(Header));
-
-    memcpy(header_bytes.data(), &header, sizeof(Header));
-
-    std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
-
-    EXPECT_TRUE(Protocol::IsHeaderValid(header_bytes_view));
+    EXPECT_TRUE(Protocol::IsHeaderValid(header));
 }
 
 TEST(ProtocolTest, InvalidHeaderChecksum)
 {
     const uint32_t payload_size = 16;
-    const Header header = Protocol::BuildHeader(payload_size);
-
-    std::vector<char> header_bytes(sizeof(Header));
-
-    memcpy(header_bytes.data(), &header, sizeof(Header));
+    Header header = Protocol::BuildHeader(payload_size);
 
     // Intentionall corrupt the checksum
 
-    const int checksum_start_index = 9;
+    header.checksum = 0xff;
 
-    header_bytes[checksum_start_index] = 0xff;
-
-    std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
-
-    EXPECT_FALSE(Protocol::IsHeaderValid(header_bytes_view));
+    EXPECT_FALSE(Protocol::IsHeaderValid(header));
 }
 
 TEST(ProtocolTest, InvalidHeaderPrefix)
 {
     const uint32_t payload_size = 16;
-    const Header header = Protocol::BuildHeader(payload_size);
+    Header header = Protocol::BuildHeader(payload_size);
 
-    std::vector<char> header_bytes(sizeof(Header));
+    // Intentionall corrupt the prefix
+    header.prefix = Protocol::PREFIX + 1;
 
-    memcpy(header_bytes.data(), &header, sizeof(Header));
-
-    // Intentionall corrupt the checksum
-
-    const int checksum_start_index = 0;
-
-    header_bytes[checksum_start_index] = 0x0;
-
-    std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
-
-    EXPECT_FALSE(Protocol::IsHeaderValid(header_bytes_view));
+    EXPECT_FALSE(Protocol::IsHeaderValid(header));
 }
 
 TEST(ProtocolTest, InvalidHeaderVersion)
 {
     const uint32_t payload_size = 16;
-    const Header header = Protocol::BuildHeader(payload_size);
+    Header header = Protocol::BuildHeader(payload_size);
 
-    std::vector<char> header_bytes(sizeof(Header));
+    // Intentionally corrupt the version
 
-    memcpy(header_bytes.data(), &header, sizeof(Header));
+    header.version = Protocol::VERSION + 1;
 
-    // Intentionall corrupt the checksum
+    EXPECT_FALSE(Protocol::IsHeaderValid(header));
+}
 
-    const int checksum_start_index = 4;
+TEST(ProtocolTest, ConvertToNetworkEndian)
+{
+    Header header 
+    {
+        .prefix = Protocol::PREFIX,
+        .payload_size = 0x89ABCDEF,
+        .version = Protocol::VERSION,
+        .checksum = 0xFEDC
+    };
 
-    header_bytes[checksum_start_index] = 0x0;
+    Protocol::ConvertToNetworkEndian(header);
 
-    std::span<char> header_bytes_view(header_bytes.begin(),header_bytes.end());
+    EXPECT_EQ(header.version,Protocol::VERSION);
+    EXPECT_EQ(header.prefix,0xEFBEADDE);
+    EXPECT_EQ(header.payload_size, 0xEFCDAB89);
+    EXPECT_EQ(header.checksum, 0xDCFE);
+}
 
-    EXPECT_FALSE(Protocol::IsHeaderValid(header_bytes_view));
+TEST(ProtocolTest, ConvertToLocalEndian)
+{
+    Header header 
+    {
+        .prefix = Protocol::PREFIX,
+        .payload_size = 0x89ABCDEF,
+        .version = Protocol::VERSION,
+        .checksum = 0xFEDC
+    };
+
+    Protocol::ConvertToNetworkEndian(header);
+
+     std::cout << header << "\n";
+
+    Protocol::ConvertToLocalEndian(header);
+
+    std::cout << header << "\n";
+
+    EXPECT_EQ(header.version,Protocol::VERSION);
+    EXPECT_EQ(header.prefix,Protocol::PREFIX);
+    EXPECT_EQ(header.payload_size, 0x89ABCDEF);
+    EXPECT_EQ(header.checksum, 0xFEDC);
 }
 
 } // namespace SmoothOperator::Test
