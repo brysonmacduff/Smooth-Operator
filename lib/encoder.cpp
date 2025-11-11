@@ -3,14 +3,15 @@
 namespace SmoothOperator
 {
 
-std::optional<std::array<char,sizeof(Header)>> Encoder::RequestHeader(std::span<char> payload)
+std::array<char,sizeof(Header)> Encoder::Encode(std::span<char> payload)
 {
+    // Return an empty header if there is a problem with the payload
     if(payload.empty() || payload.size() > Protocol::MAXIMUM_PAYLOAD_SIZE)
     {
-        return std::nullopt;
+        return {};
     }
 
-    Header header = Protocol::BuildHeader(payload.size());
+    Header header = Protocol::BuildHeader(payload);
 
     Protocol::ConvertToNetworkEndian(header);
 

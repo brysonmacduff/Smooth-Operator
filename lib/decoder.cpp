@@ -3,49 +3,40 @@
 namespace SmoothOperator
 {
 
-Decoder::Decoder(unsigned long buffer_size) : m_buffer_size(buffer_size)
+Decoder::Decoder(unsigned long buffer_size)
 {
-    m_accumulated_bytes.reserve(m_buffer_size);
+    m_header_bytes.reserve(sizeof(Header));
+    m_payload_bytes.reserve(buffer_size);
 }
 
-Decoder::Decoder(Decoder &&other) noexcept
-: m_accumulated_bytes(std::move(other.m_accumulated_bytes))
-, m_payload_callback(std::move(other.m_payload_callback))
-, m_current_payload_size(other.m_current_payload_size)
-, m_buffer_size(other.m_buffer_size)
-{
-}
-
-bool Decoder::Accumulate(const std::span<char>& bytes)
+bool Decoder::Accumulate(std::span<char> bytes)
 {
     if(bytes.empty())
     {
         return false;
     }
 
-    bool result = true;
+    bool result = false;
 
-    for (const char &rune : bytes)
+    for (const char& rune : bytes)
     {
-        m_accumulated_bytes.push_back(rune);
-
-        const bool is_last_header_byte = m_accumulated_bytes.size() == sizeof(Header);
-        const bool is_last_payload_byte = m_current_payload_size > 0 && m_accumulated_bytes.size() == sizeof(Header) + m_current_payload_size;
-
-        if (is_last_header_byte)
+        if(not m_current_header_opt.has_value())
         {
-            result = m_ProcessHeader();
+            result = m_ProcessHeaderByte(rune);
         }
-        else if (is_last_payload_byte)
+        else
         {
-            result = m_ProcessPayload();
+            result = m_ProcessPayloadByte(rune);
         }
 
+        // Exit right away if something went wrong
         if(not result)
         {
             break;
         }
     }
+
+    m_sticky_error_flag = not result;
 
     return result;
 }
@@ -60,50 +51,64 @@ void Decoder::Reset()
     m_Clear();
 }
 
-bool Decoder::m_ProcessHeader()
+bool Decoder::m_ProcessHeaderByte(const char& rune)
 {
-   if(m_accumulated_bytes.size() != sizeof(Header))
-   {
+    // If there is already a header, then this function was called in error
+    if(m_current_header_opt.has_value())
+    {
         return false;
-   }
+    }
 
-   Header header {};
-   memcpy(&header, m_accumulated_bytes.data(), sizeof(Header));
+    m_header_bytes.push_back(rune);
+    
+    // There are not enough bytes yet to build the header, and this is ok
+    if(m_header_bytes.size() < sizeof(Header))
+    {
+        return true;
+    }
 
-   Protocol::ConvertToLocalEndian(header);
-   
-   if(not Protocol::IsHeaderValid(header))
-   {
+    // Build the header now that all the header bytes have been received
+
+    Header header {};
+    memcpy(&header, m_header_bytes.data(), sizeof(Header));
+
+    Protocol::ConvertToLocalEndian(header);
+
+    // If the header is not valid, then return false
+    if(not Protocol::IsHeaderValid(header))
+    {
         return false;
-   }
+    }
 
-   m_current_payload_size = header.payload_size;
-   return true;
+    m_current_header_opt = header;
+    return true;
 }
 
-bool Decoder::m_ProcessPayload()
-{
-   if(m_accumulated_bytes.size() != sizeof(Header) + m_current_payload_size)
-   {
+bool Decoder::m_ProcessPayloadByte(const char& rune)
+{   
+    // If the header has not been received already then this function was called in error
+    if(not m_current_header_opt.has_value())
+    {
         return false;
-   }
+    }
 
-   auto payload_start_it = m_accumulated_bytes.begin();
-   std::advance(payload_start_it, sizeof(Header));
+    m_payload_bytes.push_back(rune);
 
-   std::span<char> payload_view(payload_start_it, m_accumulated_bytes.end());
+    if(m_payload_bytes.size() == m_current_header_opt.value().payload_size)
+    {
+        std::span<char> payload_view(m_payload_bytes.data(), m_payload_bytes.size());
+        m_payload_callback(payload_view);
+        m_Clear();
+    }
 
-   m_payload_callback(payload_view);
-
-   m_Clear();
-
-   return true;
+    return true;
 }
 
 void Decoder::m_Clear()
 {
-    m_current_payload_size = 0;
-    m_accumulated_bytes.clear();
+    m_header_bytes.clear();
+    m_payload_bytes.clear();
+    m_current_header_opt.reset();
 }
 
 } // namespace SmoothOperator
