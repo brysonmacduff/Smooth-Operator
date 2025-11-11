@@ -13,7 +13,7 @@ namespace SmoothOperator
 
 struct __attribute__((packed)) Header
 {
-    uint32_t prefix;
+    uint32_t preamble;
     uint32_t payload_size;
     uint8_t version;
     uint16_t checksum;
@@ -21,7 +21,7 @@ struct __attribute__((packed)) Header
     friend std::ostream& operator<<(std::ostream& ostream, const Header& header)
     {
         std::stringstream prefix_stream;
-        prefix_stream << std::hex << header.prefix;
+        prefix_stream << std::hex << header.preamble;
 
         ostream << "[ Prefix: " << prefix_stream.str();
         ostream << ", Payload-Size: " << header.payload_size;
@@ -37,12 +37,16 @@ class Protocol
 public:
     Protocol() = delete;
 
-    static constexpr uint32_t PREFIX = 0xdeadbeef;
+    static constexpr uint32_t PREAMBLE = 0xdeadbeef;
     static constexpr uint32_t MAXIMUM_PAYLOAD_SIZE = 0xffffffff;
     static constexpr uint8_t VERSION = 0x1;
     static constexpr uint16_t MAXIMUM_CHECKSUM_VALUE = 0xffff;
 
-    static Header BuildHeader(uint32_t payload_size);
+    /*!
+        \brief This function returns a header data structure based on the provided bytes
+        \warning Returns an empty header if the byte array is empty or exceeds the maximum allowable size.
+    */
+    static Header BuildHeader(std::span<char> bytes);
     static bool IsHeaderValid(const Header& header);
     static void ConvertToNetworkEndian(Header& header);
     static void ConvertToLocalEndian(Header& header);

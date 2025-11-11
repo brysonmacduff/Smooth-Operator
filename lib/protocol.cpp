@@ -3,14 +3,19 @@
 namespace SmoothOperator
 {
 
-Header Protocol::BuildHeader(uint32_t payload_size)
+Header Protocol::BuildHeader(std::span<char> bytes)
 {
+    if(bytes.empty() || bytes.size() > MAXIMUM_PAYLOAD_SIZE)
+    {
+        return {};
+    }
+
     uint16_t checksum = 0;
 
     Header header 
     {
-        .prefix = PREFIX,
-        .payload_size = payload_size,
+        .preamble = PREAMBLE,
+        .payload_size = static_cast<uint32_t>(bytes.size()),
         .version = VERSION,
         .checksum = checksum
     };
@@ -36,14 +41,14 @@ bool Protocol::IsHeaderValid(const Header& header)
 
 void Protocol::ConvertToNetworkEndian(Header& header)
 {
-    header.prefix = ntohl(header.prefix);
+    header.preamble = ntohl(header.preamble);
     header.payload_size = ntohl(header.payload_size);
     header.checksum = ntohs(header.checksum);
 }
 
-void Protocol::ConvertToLocalEndian(Header &header)
+void Protocol::ConvertToLocalEndian(Header& header)
 {
-    header.prefix = htonl(header.prefix);
+    header.preamble = htonl(header.preamble);
     header.payload_size = htonl(header.payload_size);
     header.checksum = htons(header.checksum);
 }
@@ -68,7 +73,7 @@ uint16_t Protocol::ComputeChecksum(const Header& header)
 
 bool Protocol::IsPrefixValid(const Header& header)
 {
-    return header.prefix == PREFIX;
+    return header.preamble == PREAMBLE;
 }
 
 bool Protocol::IsVersionValid(const Header& header)
