@@ -40,7 +40,7 @@ TEST(ProtocolTest, InvalidHeaderChecksum)
     EXPECT_FALSE(Protocol::IsHeaderValid(header));
 }
 
-TEST(ProtocolTest, InvalidHeaderPrefix)
+TEST(ProtocolTest, InvalidHeaderPreamble)
 {
     const uint32_t payload_size = 16;
     std::vector<char> payload(payload_size);

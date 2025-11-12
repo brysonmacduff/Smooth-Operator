@@ -5,7 +5,17 @@
 namespace SmoothOperator::Test
 {
 
-TEST(PayloadDecoderTest, AccumulatePayload)
+TEST(DecoderTest, RejectEmptyPayload)
+{
+    Decoder decoder;
+
+    std::string payload;
+    std::span<char> payload_view(payload);
+
+    EXPECT_FALSE(decoder.Accumulate(payload_view));
+}
+
+TEST(PayloadTest, AccumulatePayload)
 {
     std::string payload = "This is a payload";
     std::span<char> payload_view(payload.begin(),payload.end());
@@ -27,7 +37,7 @@ TEST(PayloadDecoderTest, AccumulatePayload)
     EXPECT_TRUE(is_payload_callback_activated);
 }
 
-TEST(PayloadDecoderTest, AccumulatePayloads)
+TEST(DecoderTest, AccumulateMultiplePayloads)
 {
     const int payload_count = 100;
     std::vector<std::string> payloads(payload_count);
@@ -59,7 +69,7 @@ TEST(PayloadDecoderTest, AccumulatePayloads)
     EXPECT_EQ(payload_callback_activations, payload_count);
 }
 
-TEST(PayloadDecoderTest, RecoverFromParsingError)
+TEST(DecoderTest, RecoverFromParsingError)
 {
     std::string payload_content = "This is a payload";
     std::span<char> payload_view(payload_content.begin(),payload_content.end());

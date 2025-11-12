@@ -34,9 +34,7 @@ bool Protocol::IsHeaderValid(const Header& header)
         return false;
     }
 
-    const uint16_t checksum = ComputeChecksum(header);
-
-    return header.checksum == checksum;
+    return header.checksum ==  ComputeChecksum(header);
 }
 
 void Protocol::ConvertToNetworkEndian(Header& header)
@@ -66,7 +64,7 @@ uint16_t Protocol::ComputeChecksum(const Header& header)
         sum += header_bytes[index];
     }
 
-    sum %= MAXIMUM_CHECKSUM_VALUE;
+    sum ^= sum;
 
     return sum;
 }
