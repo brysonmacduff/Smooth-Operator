@@ -15,7 +15,7 @@ TEST(DecoderTest, RejectEmptyPayload)
     EXPECT_FALSE(decoder.Accumulate(payload_view));
 }
 
-TEST(PayloadTest, AccumulatePayload)
+TEST(DecoderTest, AccumulatePayload)
 {
     std::string payload = "This is a payload";
     std::span<char> payload_view(payload.begin(),payload.end());

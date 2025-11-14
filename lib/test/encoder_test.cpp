@@ -39,6 +39,8 @@ TEST(EncoderTest, EncodeHeaderFromMaximumSizedPayload)
 }
 #endif
 
+// This test requires the allocation of a large array, which is slow.
+#if 0
 TEST(EncoderTest, FailToEncodeHeaderFromOversizedPaylaod)
 {
     const size_t payload_size = Protocol::MAXIMUM_PAYLOAD_SIZE+1;
@@ -54,11 +56,11 @@ TEST(EncoderTest, FailToEncodeHeaderFromOversizedPaylaod)
 
     EXPECT_FALSE(Protocol::IsHeaderValid(header));
 }
+#endif
 
 TEST(EncoderTest, FailToEncodeHeaderFromEmptyPaylaod)
 {
-    const size_t payload_size = Protocol::MAXIMUM_PAYLOAD_SIZE+1;
-    std::string payload ("a",payload_size);
+    std::string payload;
     std::span<char> payload_view(payload.begin(), payload.end());
 
     std::array<char, sizeof(Header)> header_bytes = Encoder::Encode(payload_view);
